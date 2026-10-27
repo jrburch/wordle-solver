@@ -1,0 +1,58 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <meta name="theme-color" content="#121213">
+  <title>Wordle Solver</title>
+  <link rel="stylesheet" href="style.css">
+  <script src="words.js" defer></script>
+  <script src="app.js" defer></script>
+</head>
+<body>
+  <main class="app">
+    <header class="header">
+      <div>
+        <h1>Wordle Solver</h1>
+      </div>
+      <button id="reset-button" class="button button-reset" type="button">Reset</button>
+    </header>
+
+    <p class="intro">Choose a suggested word, then click each tile to match the colors from your game. Submit the row to narrow down the possibilities.</p>
+    <p id="status" class="status" role="status" aria-live="polite">Loading word list…</p>
+
+    <div class="layout">
+      <section class="panel play-panel" aria-labelledby="play-heading">
+        <h2 id="play-heading">Your guesses</h2>
+        <div id="history" class="history" aria-live="polite"></div>
+        <form id="guess-form">
+          <div class="current-guess-row">
+            <div id="guess-tiles" class="tiles current-tiles" aria-label="Current guess"></div>
+          </div>
+          <div class="manual-entry-toggle-row">
+            <button id="toggle-custom-entry" class="button button-secondary custom-toggle" type="button" aria-expanded="false" aria-controls="custom-entry">(enter your own word here)</button>
+          </div>
+          <div id="custom-entry" class="custom-entry" hidden>
+            <label class="sr-only" for="custom-word">Enter your own five-letter guess</label>
+            <div class="custom-guess-actions">
+              <input id="custom-word" type="text" maxlength="5" autocomplete="off" spellcheck="false" placeholder="Five-letter word">
+              <button id="use-word-button" class="button button-secondary" type="button">Use</button>
+            </div>
+          </div>
+          <p class="hint">Press tiles to cycle: <span class="tile-color incorrect">gray</span> (not in word) → <span class="tile-color wrong-place">yellow</span> (in word, wrong spot) → <span class="tile-color correct">green</span> (correct spot).</p>
+          <button id="submit-button" class="button button-primary" type="submit" disabled>Submit guess</button>
+        </form>
+      </section>
+
+      <section class="panel suggestions-panel" aria-labelledby="suggestions-heading">
+        <div class="section-heading">
+          <h2 id="suggestions-heading">Suggestions</h2>
+          <span id="remaining-count" class="count"></span>
+        </div>
+        <p class="hint">Ranked by the solver's letter-position score.</p>
+        <ol id="suggestions" class="suggestions"></ol>
+      </section>
+    </div>
+  </main>
+</body>
+</html>
