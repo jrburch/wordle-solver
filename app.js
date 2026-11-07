@@ -6,6 +6,7 @@ const TILE_LABELS = {
   "wrong-place": "yellow, in the word but in the wrong position",
   correct: "green, correct position",
 };
+const WORD_LIST_URL = "https://raw.githubusercontent.com/tabatkins/wordle-list/main/words";
 
 const elements = {
   status: document.querySelector("#status"),
@@ -22,7 +23,7 @@ const elements = {
   reset: document.querySelector("#reset-button"),
 };
 
-const originalWords = [...new Set(WORDS)];
+let originalWords = [...new Set(WORDS)];
 let remainingWords = [];
 let currentGuess = "";
 let tileStates = Array(5).fill("incorrect");
@@ -58,12 +59,15 @@ function makeTiles(container, word, states, interactive = false) {
 }
 
 function renderCurrentGuess() {
+  elements.form.hidden = gameDone;
   makeTiles(elements.tiles, currentGuess, tileStates, true);
   elements.tiles.querySelectorAll("button").forEach((tile) => {
     tile.disabled = gameDone;
   });
   elements.toggleCustomEntry.disabled = gameDone;
-  elements.submit.disabled = !/^[a-z]{5}$/i.test(currentGuess) || remainingWords.length === 0;
+  elements.customWord.disabled = gameDone;
+  elements.useWord.disabled = gameDone;
+  elements.submit.disabled = gameDone || !/^[a-z]{5}$/i.test(currentGuess) || remainingWords.length === 0;
 }
 
 function renderHistory() {
@@ -122,6 +126,13 @@ function getSuggestions() {
 function renderSuggestions() {
   elements.suggestions.replaceChildren();
   elements.remainingCount.textContent = `${remainingWords.length} remaining`;
+  if (gameDone) {
+    const message = document.createElement("li");
+    message.className = "empty-state";
+    message.textContent = "Game finished. Click Again to start over.";
+    elements.suggestions.append(message);
+    return;
+  }
   if (remainingWords.length === 0) {
     const message = document.createElement("li");
     message.className = "empty-state";
@@ -198,21 +209,27 @@ function submitGuess(event) {
   renderHistory();
   renderSuggestions();
   if (tileStates.every((state) => state === "correct")) {
-    gameDone = true;
-    elements.reset.textContent = "Again";
-    currentGuess = "";
-    renderCurrentGuess();
-    setStatus(`Solved in ${history.length} ${history.length === 1 ? "guess" : "guesses"}!`);
-  } else if (remainingWords.length > 0) {
+    finishGame(`Solved in ${history.length} ${history.length === 1 ? "guess" : "guesses"}!`);
+  } else if (remainingWords.length === 1) {
     setCurrentGuess(getSuggestions()[0].word);
-    setStatus(`${remainingWords.length} possible ${remainingWords.length === 1 ? "word" : "words"} remain.`);
+    setStatus(`Only one possible word remains: ${remainingWords[0].toUpperCase()}. Guess it to finish.`);
+  } else if (remainingWords.length > 1) {
+    setCurrentGuess(getSuggestions()[0].word);
+    setStatus(`${remainingWords.length} possible words remain.`);
   } else {
-    gameDone = true;
-    elements.reset.textContent = "Again";
-    currentGuess = "";
-    renderCurrentGuess();
-    setStatus("No words match that feedback. Review the tile colors.", true);
+    finishGame("No words match that feedback. Review the tile colors or start again.", true);
   }
+}
+
+function finishGame(message, isError = false) {
+  gameDone = true;
+  elements.reset.textContent = "Again";
+  currentGuess = "";
+  elements.customEntry.hidden = true;
+  elements.toggleCustomEntry.setAttribute("aria-expanded", "false");
+  renderCurrentGuess();
+  renderSuggestions();
+  setStatus(message, isError);
 }
 
 function resetGame() {
@@ -225,6 +242,39 @@ function resetGame() {
   const firstSuggestion = getSuggestions()[0];
   setCurrentGuess(firstSuggestion ? firstSuggestion.word : "");
   setStatus(`${remainingWords.length} words loaded. Click a suggested word or enter your own.`);
+}
+
+async function loadWordList() {
+  elements.form.hidden = true;
+  elements.reset.disabled = true;
+  let words;
+  let loadMessage;
+  try {
+    const response = await fetch(WORD_LIST_URL);
+    if (!response.ok) {
+      throw new Error(`The dictionary returned HTTP ${response.status}.`);
+    }
+
+    words = [...new Set(
+      (await response.text())
+        .split(/\s+/)
+        .map((word) => word.trim().toLowerCase())
+        .filter((word) => /^[a-z]{5}$/.test(word)),
+    )];
+    if (words.length === 0) {
+      throw new Error("The dictionary did not contain any five-letter words.");
+    }
+  } catch (error) {
+    const reason = error instanceof Error ? ` ${error.message}` : "";
+    words = [...new Set(WORDS)];
+    loadMessage = `Could not load the external dictionary.${reason} Using the bundled word list instead.`;
+  }
+
+  originalWords = words;
+  elements.reset.disabled = false;
+  resetGame();
+  if (loadMessage) setStatus(loadMessage, true);
+  else setStatus(`${remainingWords.length} words loaded from the external Wordle dictionary.`);
 }
 
 function useCustomWord(event) {
@@ -254,4 +304,4 @@ elements.customWord.addEventListener("keydown", (event) => {
   }
 });
 elements.reset.addEventListener("click", resetGame);
-resetGame();
+loadWordList();
